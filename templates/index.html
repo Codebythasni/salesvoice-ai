@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+{% block title %}SalesVoice AI &middot; AI sales assistant for TaskFlow CRM{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <div class="container hero__grid">
+    <div class="hero__copy">
+      <span class="pill pill--accent">Stage 1 &middot; Live voice selling</span>
+      <h1>Turn every sales conversation into a conversation, not a form.</h1>
+      <p class="lead">
+        SalesVoice AI speaks with your customer in real time, answers their questions,
+        handles objections and closes politely &mdash; all powered by Google Gemini running
+        securely on the server.
+      </p>
+
+      <div class="hero__actions">
+        <a class="btn btn--primary" href="{{ url_for('main.dashboard') }}">
+          Open the live dashboard
+        </a>
+        <a class="btn btn--ghost" href="#how-it-works">How it works</a>
+      </div>
+
+      <dl class="hero__stats">
+        <div>
+          <dt>Product</dt>
+          <dd>{{ product.name }}</dd>
+        </div>
+        <div>
+          <dt>Assistant</dt>
+          <dd>
+            {% if assistant_ready %}
+              <span class="dot dot--ok" aria-hidden="true"></span> Ready
+            {% else %}
+              <span class="dot dot--warn" aria-hidden="true"></span> Needs API key
+            {% endif %}
+          </dd>
+        </div>
+        <div>
+          <dt>Model</dt>
+          <dd class="mono">{{ model_name }}</dd>
+        </div>
+      </dl>
+
+      {% if not assistant_ready %}
+      <p class="callout callout--warn">
+        The server is missing <code>GEMINI_API_KEY</code> / <code>GEMINI_MODEL</code>.
+        The dashboard still loads, but the assistant cannot answer until the
+        <code>.env</code> file is completed on the server.
+      </p>
+      {% endif %}
+    </div>
+
+    <div class="hero__panel" aria-hidden="true">
+      <div class="mock-window">
+        <div class="mock-window__bar">
+          <span></span><span></span><span></span>
+          <em>live sales call</em>
+        </div>
+        <div class="mock-window__body">
+          <p class="mock-line mock-line--bot">
+            <span class="mock-avatar">Ava</span>
+            Hi! I am Ava from Sankar Group. Would this be a good time for a quick look at TaskFlow CRM?
+          </p>
+          <p class="mock-line mock-line--user">
+            We already have a CRM, and it is expensive.
+          </p>
+          <p class="mock-line mock-line--bot">
+            <span class="mock-avatar">Ava</span>
+            Totally fair. TaskFlow is $39 per user with no per-call fees, so the cost stays
+            predictable as you grow.
+          </p>
+          <div class="mock-window__status">
+            <span class="dot dot--live"></span> Connected &middot; 00:42
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="how-it-works">
+  <div class="container">
+    <header class="section__head">
+      <h2>How the assistant behaves</h2>
+      <p>Ava is trained on the TaskFlow CRM knowledge base, so her answers stay accurate and on-brand.</p>
+    </header>
+
+    <div class="grid grid--3">
+      <article class="card">
+        <span class="card__icon" aria-hidden="true">?</span>
+        <h3>Answers product questions</h3>
+        <p>Features, integrations, security, implementation time and pricing are answered from a single, curated knowledge base &mdash; never invented on the spot.</p>
+      </article>
+      <article class="card">
+        <span class="card__icon" aria-hidden="true">&#9878;</span>
+        <h3>Explains the benefits</h3>
+        <p>She translates features into outcomes: faster follow-up, less admin, a clean pipeline and a lower total tool cost.</p>
+      </article>
+      <article class="card">
+        <span class="card__icon" aria-hidden="true">&#9878;</span>
+        <h3>Handles objections</h3>
+        <p>&ldquo;We already have a CRM&rdquo;, &ldquo;it looks expensive&rdquo;, &ldquo;we are too busy to set it up&rdquo; &mdash; each one gets a calm, honest answer and one next step.</p>
+      </article>
+      <article class="card">
+        <span class="card__icon" aria-hidden="true">&#10003;</span>
+        <h3>Closes politely</h3>
+        <p>She suggests a 15-minute demo, a guided setup session, a 14-day free trial or a comparison sheet &mdash; and backs off instantly if the customer says no.</p>
+      </article>
+      <article class="card">
+        <span class="card__icon" aria-hidden="true">&#9679;</span>
+        <h3>Keeps the secrets safe</h3>
+        <p>The Gemini API key is loaded from the server's <code>.env</code> file and is never sent to the browser, logged or committed.</p>
+      </article>
+      <article class="card">
+        <span class="card__icon" aria-hidden="true">&#9998;</span>
+        <h3>Falls back to text</h3>
+        <p>If the browser has no speech recognition, the dashboard says so clearly and the same conversation continues in the text chat.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section class="section section--muted">
+  <div class="container">
+    <div class="split">
+      <div>
+        <header class="section__head section__head--left">
+          <h2>TaskFlow CRM</h2>
+          <p>{{ product.tagline }}</p>
+        </header>
+        <p class="body-text">{{ product.summary }}</p>
+
+        <h3 class="subhead">Why teams switch</h3>
+        <ul class="checklist">
+          {% for item in product.differentiators %}
+          <li>{{ item }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+
+      <div class="split__aside">
+        <div class="card card--flat">
+          <h3>Plans</h3>
+          <ul class="plan-list">
+            {% for plan in product.plans %}
+            <li>
+              <div class="plan-list__head">
+                <strong>{{ plan.name }}</strong>
+                <span>{{ plan.price }}</span>
+              </div>
+              <p class="muted">{{ plan.audience }}</p>
+            </li>
+            {% endfor %}
+          </ul>
+          <a class="btn btn--primary btn--block" href="{{ url_for('main.dashboard') }}">Try the assistant</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <header class="section__head">
+      <h2>Roadmap</h2>
+      <p>Stages 1 and 2 are live today. The later stages are planned and are <strong>not</strong> implemented yet.</p>
+    </header>
+
+    <div class="grid grid--3">
+      <article class="card card--stage card--done">
+        <span class="stage-tag">Stage 1 &middot; live</span>
+        <h3>Voice sales assistant</h3>
+        <p>Browser microphone input, spoken replies, call timer, live transcript, text fallback and server-side Gemini answers.</p>
+      </article>
+      <article class="card card--stage card--done">
+        <span class="stage-tag">Stage 2 &middot; live</span>
+        <h3>Persistent call history</h3>
+        <p>Every call is stored in SQLite on the server, so the transcript, duration, sales status and summary survive a restart.</p>
+      </article>
+      <article class="card card--stage card--done">
+        <span class="stage-tag">Stage 2 &middot; live</span>
+        <h3>Summaries and sales status</h3>
+        <p>An end-of-call summary of requirements, objections, next steps and outcome, plus a status you can set yourself: Converted, Interested, Follow-up Required, Not Interested, Demo Requested or No Response.</p>
+      </article>
+      <article class="card card--stage card--done">
+        <span class="stage-tag">Stage 2 &middot; live, with limits</span>
+        <h3>Recording with consent</h3>
+        <p>The customer is asked for permission before anything is captured and files stay on this computer. Only the customer microphone is captured &mdash; the browser cannot record the assistant's voice, so this is not a two-sided call recording.</p>
+      </article>
+      <article class="card card--stage card--next">
+        <span class="stage-tag">Stage 3 &middot; planned</span>
+        <h3>Two-sided call recording</h3>
+        <p>Capturing both the customer and the assistant on one file needs a server-side voice pipeline, not just the browser microphone.</p>
+      </article>
+      <article class="card card--stage card--next">
+        <span class="stage-tag">Stage 4 &middot; planned</span>
+        <h3>Pipeline and reporting</h3>
+        <p>Grouping calls into a sales pipeline, filtering the history and exporting results for the team.</p>
+      </article>
+    </div>
+  </div>
+</section>
+{% endblock %}

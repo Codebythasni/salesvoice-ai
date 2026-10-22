@@ -1,0 +1,340 @@
+{% extends "base.html" %}
+{% block title %}Live sales dashboard &middot; SalesVoice AI{% endblock %}
+
+{% block content %}
+<section class="dashboard-head">
+  <div class="container dashboard-head__inner">
+    <div>
+      <span class="pill pill--accent">{{ product.name }} &middot; {{ product.company }}</span>
+      <h1 class="dashboard-head__title">Live sales dashboard</h1>
+      <p class="muted">{{ product.tagline }}</p>
+    </div>
+    <div class="dashboard-head__meta">
+      <div class="meta-chip">
+        <span class="meta-chip__label">Stage</span>
+        <span class="meta-chip__value">{{ stage }}</span>
+      </div>
+      <div class="meta-chip">
+        <span class="meta-chip__label">Model</span>
+        <span class="meta-chip__value mono">{{ model_name }}</span>
+      </div>
+      <div class="meta-chip">
+        <span class="meta-chip__label">Assistant</span>
+        <span class="meta-chip__value" id="assistant-state">
+          {% if assistant_ready %}
+            <span class="dot dot--ok"></span> Ready
+          {% else %}
+            <span class="dot dot--warn"></span> Not configured
+          {% endif %}
+        </span>
+      </div>
+      <div class="meta-chip">
+        <span class="meta-chip__label">Saved calls</span>
+        <span class="meta-chip__value" id="stored-calls">0</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="container dashboard">
+  <div class="dashboard__banner" id="capability-banner" hidden>
+    <div class="banner__icon" aria-hidden="true">!</div>
+    <div class="banner__body">
+      <strong id="capability-banner-title">Browser speech recognition is unavailable</strong>
+      <p id="capability-banner-text">
+        Use the text chat below to continue the conversation &mdash; it works exactly the same way.
+      </p>
+    </div>
+    <button type="button" class="btn btn--small btn--ghost" id="dismiss-banner">Dismiss</button>
+  </div>
+
+  <div class="dashboard__banner dashboard__banner--resume" id="resume-banner" hidden>
+    <div class="banner__icon" aria-hidden="true">&#8635;</div>
+    <div class="banner__body">
+      <strong id="resume-banner-title">A call was still open</strong>
+      <p id="resume-banner-text">
+        The saved state of the earlier call is shown below.
+      </p>
+    </div>
+    <div class="banner__actions">
+      <button type="button" class="btn btn--small btn--primary" id="resume-continue">Continue this call</button>
+      <button type="button" class="btn btn--small btn--ghost" id="resume-new-call">End it and start a new call</button>
+      <button type="button" class="btn btn--small btn--ghost" id="resume-dismiss">Dismiss</button>
+    </div>
+  </div>
+
+  <div class="dashboard__grid">
+    <!-- ------------------------------------------------ main column -->
+    <div class="dashboard__main">
+      <section class="panel call-panel" aria-label="Call controls">
+        <div class="call-panel__row">
+          <div class="call-panel__controls">
+            <button type="button" class="btn btn--primary btn--call" id="start-call">
+              <span class="btn__icon" aria-hidden="true">&#9210;</span> Start Call
+            </button>
+            <button type="button" class="btn btn--danger" id="end-call" disabled>
+              <span class="btn__icon" aria-hidden="true">&#9749;</span> End Call
+            </button>
+            <button type="button" class="btn btn--ghost" id="toggle-mic" disabled>
+              <span class="btn__icon" aria-hidden="true">&#9678;</span> <span id="toggle-mic-label">Mute mic</span>
+            </button>
+            <button type="button" class="btn btn--ghost" id="toggle-voice" disabled>
+              <span class="btn__icon" aria-hidden="true">&#9835;</span> <span id="toggle-voice-label">Voice on</span>
+            </button>
+          </div>
+
+          <div class="call-panel__status">
+            <div class="timer" id="call-timer" aria-live="off">00:00</div>
+            <div class="status-pill status-pill--idle" id="call-status" role="status" aria-live="polite">
+              <span class="dot"></span><span id="call-status-text">Idle &mdash; no active call</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="call-panel__meta">
+          <div class="kv">
+            <span class="kv__label">Call ID</span>
+            <span class="kv__value mono" id="call-id">not started</span>
+          </div>
+          <div class="kv">
+            <span class="kv__label">Turns</span>
+            <span class="kv__value" id="turn-count">0</span>
+          </div>
+          <div class="kv">
+            <span class="kv__label">Listening</span>
+            <span class="kv__value" id="listening-state">Off</span>
+          </div>
+          <div class="kv">
+            <span class="kv__label">Storage</span>
+            <span class="kv__value">SQLite &middot; saved on the server</span>
+          </div>
+        </div>
+
+        <div class="status-row">
+          <label class="status-row__label" for="sales-status">Sales status</label>
+          <select id="sales-status" class="select" disabled>
+            {% for option in sales_statuses %}
+            <option value="{{ option }}" {{ 'selected' if option == default_sales_status else '' }}>{{ option }}</option>
+            {% endfor %}
+          </select>
+          <span class="status-row__hint" id="sales-status-hint">Start a call to set the sales status.</span>
+        </div>
+
+        <p class="call-panel__hint" id="mic-hint">
+          Start the call, allow microphone access, then speak to the customer.
+          You can also type straight away &mdash; a call is opened automatically.
+        </p>
+      </section>
+
+      <section class="panel summary-panel" id="summary-panel" hidden>
+        <header class="panel__head">
+          <h2>Call summary</h2>
+          <div class="panel__head-actions">
+            <button type="button" class="btn btn--small btn--ghost" id="retry-summary" hidden>Retry summary</button>
+          </div>
+        </header>
+        <dl class="summary-grid" id="summary-grid"></dl>
+        <p class="callout callout--warn" id="summary-error" hidden></p>
+      </section>
+
+      <section class="panel transcript-panel" aria-label="Live transcript">
+        <header class="panel__head">
+          <h2>Live transcript</h2>
+          <div class="panel__head-actions">
+            <span class="badge badge--muted" id="interim-badge" hidden>Listening&hellip;</span>
+            <button type="button" class="btn btn--small btn--ghost" id="clear-transcript">Clear</button>
+          </div>
+        </header>
+
+        <div class="transcript" id="transcript" role="log" aria-live="polite" aria-relevant="additions">
+          <div class="transcript__empty" id="transcript-empty">
+            <span class="transcript__empty-icon" aria-hidden="true">&#128172;</span>
+            <p><strong>No conversation yet.</strong></p>
+            <p>Start the call to greet the customer, or type a message below to begin in text mode.</p>
+          </div>
+        </div>
+
+        <form class="composer" id="composer" autocomplete="off">
+          <label class="composer__field">
+            <span class="sr-only">Type a message to the assistant</span>
+            <input type="text" id="message-input" name="message" placeholder="Type the customer's message and press Enter" disabled>
+          </label>
+          <button type="submit" class="btn btn--primary" id="send-message" disabled>Send</button>
+        </form>
+        <p class="composer__note">
+          Text chat is the fallback when the browser does not support speech recognition.
+          It uses the same server-side assistant and the same call history.
+        </p>
+      </section>
+    </div>
+
+    <!-- ------------------------------------------------ side column -->
+    <aside class="dashboard__side">
+      <section class="panel">
+        <header class="panel__head">
+          <h2>{{ product.name }}</h2>
+        </header>
+        <p class="body-text">{{ product.summary }}</p>
+
+        <h3 class="subhead">Key benefits</h3>
+        <ul class="checklist checklist--compact">
+          {% for item in product.benefits[:5] %}
+          <li>{{ item }}</li>
+          {% endfor %}
+        </ul>
+
+        <h3 class="subhead">Plans</h3>
+        <ul class="plan-list plan-list--compact">
+          {% for plan in product.plans %}
+          <li>
+            <div class="plan-list__head">
+              <strong>{{ plan.name }}</strong>
+              <span>{{ plan.price }}</span>
+            </div>
+          </li>
+          {% endfor %}
+        </ul>
+      </section>
+
+      <section class="panel">
+        <header class="panel__head">
+          <h2>Recording</h2>
+        </header>
+        <p class="muted small" id="recording-consent-state">Consent has not been requested for this call.</p>
+        <div class="recording-controls">
+          <button type="button" class="btn btn--ghost" id="ask-consent" disabled>Ask for consent</button>
+          <button type="button" class="btn btn--danger" id="toggle-record" disabled>
+            <span class="btn__icon" aria-hidden="true">&#9679;</span> <span id="toggle-record-label">Start recording</span>
+          </button>
+        </div>
+        <p class="callout callout--warn small" id="recording-scope-note">{{ recording_scope_notice }}</p>
+        <ul class="recording-list" id="recording-list"></ul>
+        <p class="muted small" id="recording-list-note">No recording has been made for this call yet.</p>
+        <audio id="recording-player" controls hidden class="recording-player"></audio>
+        <p class="callout callout--warn small" id="recording-player-error" hidden></p>
+      </section>
+
+      <section class="panel">
+        <header class="panel__head">
+          <h2>What Ava handles</h2>
+        </header>
+        <ul class="checklist checklist--compact">
+          <li>Product and pricing questions</li>
+          <li>Benefit and feature explanations</li>
+          <li>Common objections (cost, migration, time, trust)</li>
+          <li>Polite close with a concrete next step</li>
+          <li>Honest &ldquo;I don't know&rdquo; when info is missing</li>
+        </ul>
+      </section>
+
+      <section class="panel panel--muted">
+        <header class="panel__head">
+          <h2>Privacy</h2>
+        </header>
+        <p class="muted small">
+          The Gemini API key is read from the server's <code>.env</code> file and never reaches
+          this page. Only the text of the conversation is sent to the Gemini API. Recordings stay
+          in the local <code>recordings/</code> folder and are excluded from Git.
+        </p>
+      </section>
+    </aside>
+  </div>
+
+  <!-- ------------------------------------------------ call history -->
+  <section class="panel history-panel" aria-label="Call history">
+    <header class="panel__head">
+      <h2>Call history</h2>
+      <div class="panel__head-actions">
+        <span class="muted small" id="history-count">0 calls saved</span>
+        <button type="button" class="btn btn--small btn--ghost" id="refresh-history">Refresh</button>
+      </div>
+    </header>
+    <p class="muted small">
+      Every call is stored in SQLite on this server, so the history survives a restart.
+    </p>
+    <div class="table-wrap">
+      <table class="history-table">
+        <thead>
+          <tr>
+            <th scope="col">Call</th>
+            <th scope="col">Started</th>
+            <th scope="col">Duration</th>
+            <th scope="col">Turns</th>
+            <th scope="col">Summary</th>
+            <th scope="col">Sales status</th>
+            <th scope="col"><span class="sr-only">Actions</span></th>
+          </tr>
+        </thead>
+        <tbody id="history-body">
+          <tr class="history-empty">
+            <td colspan="7">No calls saved yet. Start a call to build the history.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<!-- ------------------------------------------------ consent modal -->
+<div class="modal" id="consent-modal" hidden role="dialog" aria-modal="true" aria-labelledby="consent-title">
+  <div class="modal__card">
+    <h2 id="consent-title">May I record this call?</h2>
+    <p>
+      Recording is optional and stays on this computer. The customer has to agree before
+      anything is captured, and you can delete a recording at any time.
+    </p>
+    <p class="muted small">{{ recording_scope_notice }}</p>
+    <div class="modal__actions">
+      <button type="button" class="btn btn--ghost" id="consent-deny">No, do not record</button>
+      <button type="button" class="btn btn--primary" id="consent-grant">Yes, record the call</button>
+    </div>
+  </div>
+</div>
+
+<!-- ------------------------------------------------ saved call detail -->
+<div class="modal modal--wide" id="call-detail-modal" hidden role="dialog" aria-modal="true" aria-labelledby="call-detail-title">
+  <div class="modal__card modal__card--wide">
+    <header class="modal__head">
+      <div>
+        <h2 id="call-detail-title">Saved call</h2>
+        <p class="muted small mono" id="call-detail-id"></p>
+      </div>
+      <button type="button" class="btn btn--small btn--ghost" id="close-call-detail">Close</button>
+    </header>
+
+    <dl class="detail__meta" id="call-detail-meta"></dl>
+
+    <div class="detail__status">
+      <label class="status-row__label" for="call-detail-status">Sales status</label>
+      <select id="call-detail-status" class="select"></select>
+      <span class="muted small" id="call-detail-status-hint"></span>
+    </div>
+
+    <section class="detail__section" aria-label="Call summary">
+      <h3>Summary</h3>
+      <p class="callout callout--warn small" id="call-detail-summary-error" hidden></p>
+      <dl class="summary-grid" id="call-detail-summary"></dl>
+      <p class="muted small" id="call-detail-summary-empty" hidden>No summary has been generated for this call yet.</p>
+      <button type="button" class="btn btn--small btn--ghost" id="call-detail-retry">Retry summary</button>
+    </section>
+
+    <section class="detail__section" aria-label="Call recording">
+      <h3>Recording</h3>
+      <p class="callout callout--info small" id="call-detail-recording-scope">{{ recording_scope_notice }}</p>
+      <ul class="recording-list" id="call-detail-recordings"></ul>
+      <p class="muted small" id="call-detail-recording-note"></p>
+      <audio id="call-detail-player" controls hidden class="recording-player"></audio>
+      <p class="callout callout--warn small" id="call-detail-player-error" hidden></p>
+    </section>
+
+    <section class="detail__section" aria-label="Saved transcript">
+      <h3>Transcript</h3>
+      <div class="detail__transcript" id="call-detail-transcript"></div>
+    </section>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}

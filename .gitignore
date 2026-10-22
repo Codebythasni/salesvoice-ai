@@ -1,0 +1,48 @@
+# Secrets / local config
+.env
+.env.local
+*.pem
+*.key
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Python cache / build artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Generated recordings
+recordings/
+*.wav
+*.mp3
+*.m4a
+*.ogg
+*.flac
+*.webm
+*.oga
+
+# Local database (SQLite call history)
+instance/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+
+# Logs and editor folders
+*.log
+logs/
+.vscode/
+.idea/
